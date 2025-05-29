@@ -3,6 +3,14 @@ provider "aws" {
 }
 
 ##########################
+# IAM User for Jenkins
+##########################
+
+resource "aws_iam_user" "jenkins_user" {
+  name = "jenkins-user"
+}
+
+##########################
 # IAM Role & Policy for EC2 to access S3 bucket
 ##########################
 
@@ -47,7 +55,6 @@ resource "aws_iam_user_policy_attachment" "attach_s3_policy" {
   user       = aws_iam_user.jenkins_user.name
   policy_arn = aws_iam_policy.s3_read_write_policy.arn
 }
-
 
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "ec2_instance_profile"
@@ -128,6 +135,5 @@ resource "aws_instance" "web_server" {
               unzip -o flask-app.zip -d flask-app
               cd flask-app
               pip3 install -r requirements.txt
-              nohup python3 app.py > app.log 2>&1 &
-              EOF
+              
 }
