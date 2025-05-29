@@ -38,19 +38,17 @@ pipeline {
             }
         }
 
-        stage('Terraform Init & Plan') {
-            steps {
-                dir('terraform') {
-                    withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
-                        bat '''
-                        terraform init
-                        terraform plan -out=tfplan
-                        terraform show -no-color tfplan > tfplan.txt
-                        '''
-                    }
-                }
+       stage('Terraform Init & Plan') {
+    steps {
+        dir('cloud web app/terraform') {
+            withAWS(region: 'us-east-1', credentials: 'aws-credentials') {
+                bat 'terraform init'
+                bat 'terraform plan -out=tfplan'
+                bat 'terraform show -no-color tfplan > tfplan.txt'
             }
         }
+    }
+}
 
         stage('Upload to S3') {
             steps {
