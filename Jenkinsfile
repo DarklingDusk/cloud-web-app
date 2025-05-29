@@ -9,9 +9,7 @@ pipeline {
         AWS_REGION = 'us-east-1'
         S3_BUCKET  = 'my-flask-app-bucket'      // Same as `var.bucket_name` in Terraform
         ZIP_NAME   = 'flask-app.zip'
-        // These are Jenkins credentials of type "Secret Text"
-        AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
-        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+        CREDENTIALS_ID = 'aws-credentials'      // Your single AWS credential ID in Jenkins
     }
 
     stages {
@@ -38,13 +36,11 @@ pipeline {
                 '''
             }
         }
-     stage('Terraform Init & Plan') {
+
+        stage('Terraform Init & Plan') {
             steps {
                 dir('terraform') {
-                    withEnv([
-                        "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
-                        "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}"
-                    ]) {
+                    withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
                         sh '''
                         terraform init
                         terraform plan -out=tfplan
@@ -57,16 +53,11 @@ pipeline {
 
         stage('Upload to S3') {
             steps {
-                withEnv([
-                    "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
-                    "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}"
-                ]) {
+                withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
                     sh "aws s3 cp ${ZIP_NAME} s3://${S3_BUCKET}/${ZIP_NAME} --region ${AWS_REGION}"
                 }
             }
         }
-
-       
 
         stage('Approval') {
             when {
@@ -86,10 +77,7 @@ pipeline {
         stage('Terraform Apply') {
             steps {
                 dir('terraform') {
-                    withEnv([
-                        "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
-                        "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}"
-                    ]) {
+                    withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
                         sh "terraform apply -input=false tfplan"
                     }
                 }
