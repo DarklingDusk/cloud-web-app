@@ -1,0 +1,108 @@
+pipeline {
+    agent any
+
+    parameters {
+        booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically apply Terraform plan?')
+    }
+
+    environment {
+        AWS_REGION = 'us-east-1'
+        S3_BUCKET  = 'my-flask-app-bucket'      // Same as `var.bucket_name` in Terraform
+        ZIP_NAME   = 'flask-app.zip'
+        // These are Jenkins credentials of type "Secret Text"
+        AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies and Test') {
+            steps {
+                dir('app') {
+                    sh 'pip install -r requirements.txt'
+                    sh 'python3 -m unittest || true'
+                }
+            }
+        }
+
+        stage('Package Flask App') {
+            steps {
+                sh '''
+                cd app
+                zip -r ../${ZIP_NAME} *
+                '''
+            }
+        }
+     stage('Terraform Init & Plan') {
+            steps {
+                dir('terraform') {
+                    withEnv([
+                        "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+                        "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}"
+                    ]) {
+                        sh '''
+                        terraform init
+                        terraform plan -out=tfplan
+                        terraform show -no-color tfplan > tfplan.txt
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Upload to S3') {
+            steps {
+                withEnv([
+                    "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+                    "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}"
+                ]) {
+                    sh "aws s3 cp ${ZIP_NAME} s3://${S3_BUCKET}/${ZIP_NAME} --region ${AWS_REGION}"
+                }
+            }
+        }
+
+       
+
+        stage('Approval') {
+            when {
+                not {
+                    equals expected: true, actual: params.autoApprove
+                }
+            }
+            steps {
+                script {
+                    def plan = readFile 'terraform/tfplan.txt'
+                    input message: "Do you want to apply this Terraform plan?",
+                          parameters: [text(name: 'Plan', description: 'Review the plan below', defaultValue: plan)]
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                dir('terraform') {
+                    withEnv([
+                        "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+                        "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}"
+                    ]) {
+                        sh "terraform apply -input=false tfplan"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Deployment Successful!'
+        }
+        failure {
+            echo '❌ Deployment Failed!'
+        }
+    }
+}
