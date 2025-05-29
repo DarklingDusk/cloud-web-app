@@ -19,14 +19,14 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies and Test') {
-            steps {
-                dir('app') {
-                    sh 'pip install -r requirements.txt'
-                    sh 'python3 -m unittest || true'
-                }
-            }
+     stage('Install Dependencies and Test') {
+    steps {
+        dir('app') {
+            bat 'python -m venv venv && venv\\Scripts\\activate && pip install -r requirements.txt && python -m unittest discover'
         }
+    }
+}
+
 
         stage('Package Flask App') {
             steps {
