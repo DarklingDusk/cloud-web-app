@@ -31,7 +31,8 @@ pipeline {
             steps {
                 bat """
                 cd "cloud web app/app"
-                powershell Compress-Archive -Path * -DestinationPath ..\\${ZIP_NAME}
+                powershell Compress-Archive -Path * -DestinationPath ..\flask-app.zip -Force
+
                 """
             }
         }
