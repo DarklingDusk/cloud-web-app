@@ -19,22 +19,19 @@ pipeline {
             }
         }
 
-       stage('Install Dependencies and Test') {
-    steps {
-        dir('cloud web app/app') {
-            bat 'pip install -r requirements.txt'
-            
+        stage('Install Dependencies and Test') {
+            steps {
+                dir('cloud web app/app') {
+                    bat 'pip install -r requirements.txt'
+                }
+            }
         }
-    }
-}
-
-        
 
         stage('Package Flask App') {
             steps {
-                sh """
+                bat """
                 cd app
-                zip -r ../${ZIP_NAME} *
+                powershell Compress-Archive -Path * -DestinationPath ..\\${ZIP_NAME}
                 """
             }
         }
@@ -43,7 +40,7 @@ pipeline {
             steps {
                 dir('terraform') {
                     withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
-                        sh '''
+                        bat '''
                         terraform init
                         terraform plan -out=tfplan
                         terraform show -no-color tfplan > tfplan.txt
@@ -56,7 +53,7 @@ pipeline {
         stage('Upload to S3') {
             steps {
                 withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
-                    sh "aws s3 cp ${ZIP_NAME} s3://${S3_BUCKET}/${ZIP_NAME} --region ${AWS_REGION}"
+                    bat "aws s3 cp ${ZIP_NAME} s3://${S3_BUCKET}/${ZIP_NAME} --region ${AWS_REGION}"
                 }
             }
         }
@@ -80,7 +77,7 @@ pipeline {
             steps {
                 dir('terraform') {
                     withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
-                        sh "terraform apply -input=false tfplan"
+                        bat "terraform apply -input=false tfplan"
                     }
                 }
             }
