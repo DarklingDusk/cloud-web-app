@@ -1,28 +1,35 @@
+###################################
+# PROVIDER CONFIGURATION
+###################################
 provider "aws" {
   region = var.aws_region
 }
 
-##########################
-# Use existing IAM User: web-app-user
-##########################
+###################################
+# IAM CONFIGURATION FOR JENKINS
+###################################
+
+# Use existing IAM user: web-app-user
+# Fetch IAM user details
 
 data "aws_iam_user" "jenkins_user" {
   user_name = "web-app-user"
 }
 
+# Custom IAM policy for S3 read/write access
 resource "aws_iam_policy" "s3_read_write_policy" {
   name = "s3_read_write_policy"
 
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow"
+        Effect = "Allow",
         Action = [
           "s3:GetObject",
           "s3:ListBucket",
           "s3:PutObject"
-        ]
+        ],
         Resource = [
           "arn:aws:s3:::${var.bucket_name}",
           "arn:aws:s3:::${var.bucket_name}/*"
@@ -32,26 +39,27 @@ resource "aws_iam_policy" "s3_read_write_policy" {
   })
 }
 
+# Attach policy to the existing user
 resource "aws_iam_user_policy_attachment" "attach_s3_policy" {
   user       = data.aws_iam_user.jenkins_user.user_name
   policy_arn = aws_iam_policy.s3_read_write_policy.arn
 }
 
-##########################
-# IAM Role & Profile for EC2 to access S3
-##########################
+###################################
+# IAM ROLE FOR EC2
+###################################
 
 resource "aws_iam_role" "ec2_role" {
   name = "ec2_s3_read_role"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow"
+        Effect = "Allow",
         Principal = {
           Service = "ec2.amazonaws.com"
-        }
+        },
         Action = "sts:AssumeRole"
       }
     ]
@@ -63,9 +71,9 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
   role = aws_iam_role.ec2_role.name
 }
 
-##########################
-# Security Group for EC2
-##########################
+###################################
+# SECURITY GROUP FOR EC2
+###################################
 
 resource "aws_security_group" "web_sg" {
   name        = "web-sg"
@@ -93,14 +101,15 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-##########################
-# S3 Bucket
-##########################
+###################################
+# S3 BUCKET FOR FLASK APP
+###################################
 
 resource "aws_s3_bucket" "static_files" {
   bucket = var.bucket_name
 }
 
+# Allow public read/write (adjust as needed)
 resource "aws_s3_bucket_public_access_block" "static_files" {
   bucket = aws_s3_bucket.static_files.id
 
@@ -110,9 +119,9 @@ resource "aws_s3_bucket_public_access_block" "static_files" {
   restrict_public_buckets = false
 }
 
-##########################
-# EC2 Instance to run Flask (manual run)
-##########################
+###################################
+# EC2 INSTANCE TO RUN FLASK (MANUAL START)
+###################################
 
 resource "aws_instance" "web_server" {
   ami                    = var.ami_id
@@ -120,8 +129,7 @@ resource "aws_instance" "web_server" {
   key_name               = var.key_name
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
-
-  iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
+  iam_instance_profile   = aws_iam_instance_profile.ec2_instance_profile.name
 
   tags = {
     Name        = "flask-web-server"
