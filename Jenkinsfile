@@ -30,7 +30,7 @@ pipeline {
         stage('Package Flask App') {
             steps {
                 bat """
-                cd app
+                cd "cloud web app/app"
                 powershell Compress-Archive -Path * -DestinationPath ..\\${ZIP_NAME}
                 """
             }
