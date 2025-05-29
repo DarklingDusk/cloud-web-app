@@ -21,7 +21,7 @@ pipeline {
 
         stage('Install Dependencies and Test') {
             steps {
-                dir('app') {
+                dir('cloud web app/app') {
                     sh '''
                     python3 -m venv venv
                     . venv/bin/activate
