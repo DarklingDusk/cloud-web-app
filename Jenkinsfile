@@ -6,10 +6,10 @@ pipeline {
     }
 
     environment {
-        AWS_REGION = 'us-east-1'
-        S3_BUCKET  = 'my-flask-app-bucket'      // Same as `var.bucket_name` in Terraform
-        ZIP_NAME   = 'flask-app.zip'
-        CREDENTIALS_ID = 'aws-credentials'      // Your single AWS credential ID in Jenkins
+        AWS_REGION     = 'us-east-1'
+        S3_BUCKET      = 'my-flask-app-bucket'
+        ZIP_NAME       = 'flask-app.zip'
+        CREDENTIALS_ID = 'aws-credentials'
     }
 
     stages {
@@ -19,21 +19,25 @@ pipeline {
             }
         }
 
-     stage('Install Dependencies and Test') {
-    steps {
-        dir('app') {
-            bat 'python -m venv venv && venv\\Scripts\\activate && pip install -r requirements.txt && python -m unittest discover'
+        stage('Install Dependencies and Test') {
+            steps {
+                dir('app') {
+                    sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt
+                    python -m unittest discover
+                    '''
+                }
+            }
         }
-    }
-}
-
 
         stage('Package Flask App') {
             steps {
-                sh '''
+                sh """
                 cd app
                 zip -r ../${ZIP_NAME} *
-                '''
+                """
             }
         }
 
