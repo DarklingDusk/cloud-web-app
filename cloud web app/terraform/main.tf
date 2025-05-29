@@ -38,32 +38,6 @@ resource "aws_iam_user_policy_attachment" "attach_s3_policy" {
 }
 
 ##########################
-# IAM Role & Profile for EC2 to access S3
-##########################
-
-resource "aws_iam_role" "ec2_role" {
-  name = "ec2_s3_read_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_instance_profile" "ec2_instance_profile" {
-  name = "ec2_instance_profile"
-  role = aws_iam_role.ec2_role.name
-}
-
-##########################
 # Security Group for EC2
 ##########################
 
@@ -121,7 +95,7 @@ resource "aws_instance" "web_server" {
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
-  iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
+  # No IAM instance profile since you manage IAM roles manually
 
   tags = {
     Name        = "flask-web-server"
@@ -132,11 +106,6 @@ resource "aws_instance" "web_server" {
               #!/bin/bash
               yum update -y
               yum install -y python3 unzip awscli
-              cd /home/ec2-user
-              aws s3 cp s3://${var.bucket_name}/flask-app.zip flask-app.zip
-              unzip -o flask-app.zip -d flask-app
-              cd flask-app
-              pip3 install -r requirements.txt
-              # Flask will be started manually by you
+              # Flask app deployment and start will be done manually by you
               EOF
 }
