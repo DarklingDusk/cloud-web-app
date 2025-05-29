@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = 'us-east-1'
+        S3_BUCKET  = 'my-flask-app-bucket'   // Same as `var.bucket_name` in Terraform
+        ZIP_NAME   = 'flask-app.zip'
+        CREDENTIALS_ID = 'aws-credentials'     // Set in Jenkins credentials
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies and Test') {
+            steps {
+                dir('app') {
+                    sh 'pip install -r requirements.txt'
+                    sh 'python3 -m unittest || true'
+                }
+            }
+        }
+
+        stage('Package Flask App') {
+            steps {
+                sh '''
+                cd app
+                zip -r ../${ZIP_NAME} *
+                '''
+            }
+        }
+
+        stage('Upload to S3') {
+            steps {
+                withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
+                    sh "aws s3 cp ${ZIP_NAME} s3://${S3_BUCKET}/${ZIP_NAME}"
+                }
+            }
+        }
+
+        // Optional: Run Terraform to re-deploy if needed
+        stage('Terraform Apply') {
+            steps {
+                dir('terraform') {
+                    withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
+                        sh '''
+                        terraform init
+                        terraform apply -auto-approve
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Deployment Successful!'
+        }
+        failure {
+            echo '❌ Deployment Failed!'
+        }
+    }
+}
