@@ -1,32 +1,13 @@
 provider "aws" {
-  region = var.aws_region   # <-- Change your AWS region here
+  region = var.aws_region
 }
 
 ##########################
-# IAM User for Jenkins
+# Use existing IAM User: web-app-user
 ##########################
 
-resource "aws_iam_user" "jenkins_user" {
-  name = "jenkins-user"
-}
-
-##########################
-# IAM Role & Policy for EC2 to access S3 bucket
-##########################
-
-resource "aws_iam_role" "ec2_role" {
-  name = "ec2_s3_read_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      }
-      Action = "sts:AssumeRole"
-    }]
-  })
+data "aws_iam_user" "jenkins_user" {
+  user_name = "web-app-user"
 }
 
 resource "aws_iam_policy" "s3_read_write_policy" {
@@ -43,8 +24,8 @@ resource "aws_iam_policy" "s3_read_write_policy" {
           "s3:PutObject"
         ]
         Resource = [
-          "arn:aws:s3:::${var.bucket_name}",        # bucket itself (for list)
-          "arn:aws:s3:::${var.bucket_name}/*"       # all objects in bucket
+          "arn:aws:s3:::${var.bucket_name}",
+          "arn:aws:s3:::${var.bucket_name}/*"
         ]
       }
     ]
@@ -52,8 +33,29 @@ resource "aws_iam_policy" "s3_read_write_policy" {
 }
 
 resource "aws_iam_user_policy_attachment" "attach_s3_policy" {
-  user       = aws_iam_user.jenkins_user.name
+  user       = data.aws_iam_user.jenkins_user.user_name
   policy_arn = aws_iam_policy.s3_read_write_policy.arn
+}
+
+##########################
+# IAM Role & Profile for EC2 to access S3
+##########################
+
+resource "aws_iam_role" "ec2_role" {
+  name = "ec2_s3_read_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
 }
 
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
@@ -62,7 +64,7 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
 }
 
 ##########################
-# Security Group for EC2 instance
+# Security Group for EC2
 ##########################
 
 resource "aws_security_group" "web_sg" {
@@ -92,11 +94,11 @@ resource "aws_security_group" "web_sg" {
 }
 
 ##########################
-# S3 Bucket to store Flask app ZIP
+# S3 Bucket
 ##########################
 
 resource "aws_s3_bucket" "static_files" {
-  bucket = var.bucket_name  # <-- Change your bucket name here
+  bucket = var.bucket_name
 }
 
 resource "aws_s3_bucket_public_access_block" "static_files" {
@@ -109,14 +111,14 @@ resource "aws_s3_bucket_public_access_block" "static_files" {
 }
 
 ##########################
-# EC2 Instance running Flask app
+# EC2 Instance to run Flask (manual run)
 ##########################
 
 resource "aws_instance" "web_server" {
-  ami                    = var.ami_id       # <-- Change to your AMI ID (e.g. Amazon Linux 2)
+  ami                    = var.ami_id
   instance_type          = "t2.micro"
-  key_name               = var.key_name     # <-- Change to your EC2 Key Pair Name
-  subnet_id              = var.subnet_id    # <-- Change to your subnet ID
+  key_name               = var.key_name
+  subnet_id              = var.subnet_id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
   iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
@@ -135,6 +137,6 @@ resource "aws_instance" "web_server" {
               unzip -o flask-app.zip -d flask-app
               cd flask-app
               pip3 install -r requirements.txt
+              # Flask will be started manually by you
               EOF
-              
 }
