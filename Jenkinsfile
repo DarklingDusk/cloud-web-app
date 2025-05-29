@@ -7,8 +7,6 @@ pipeline {
 
     environment {
         AWS_REGION     = 'us-east-1'
-        S3_BUCKET      = 'my-flask-app-bucket'
-        ZIP_NAME       = 'flask-app.zip'
         CREDENTIALS_ID = 'aws-credentials'
     }
 
@@ -19,24 +17,7 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies and Test') {
-            steps {
-                dir('cloud web app/app') {
-                    bat 'pip install -r requirements.txt'
-                }
-            }
-        }
-
-        stage('Package Flask App') {
-            steps {
-                bat """
-                cd "cloud web app/app"
-                powershell Compress-Archive -Path * -DestinationPath ../../flask-app.zip -Force
-
-
-                """
-            }
-        }
+       
 
        stage('Terraform Init & Plan') {
     steps {
@@ -50,13 +31,6 @@ pipeline {
     }
 }
 
-        stage('Upload to S3') {
-            steps {
-                withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
-                    bat "aws s3 cp ${ZIP_NAME} s3://${S3_BUCKET}/${ZIP_NAME} --region ${AWS_REGION}"
-                }
-            }
-        }
 
         stage('Approval') {
             when {
