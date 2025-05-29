@@ -14,9 +14,7 @@ pipeline {
 
     stages {
         stage('Checkout Code') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
         stage('Install Dependencies and Test') {
@@ -29,26 +27,21 @@ pipeline {
 
         stage('Package Flask App') {
             steps {
-                bat """
-                cd "cloud web app/app"
-                powershell Compress-Archive -Path * -DestinationPath ../../flask-app.zip -Force
-
-
-                """
+                bat 'powershell Compress-Archive -Path "cloud web app/app/*" -DestinationPath flask-app.zip -Force'
             }
         }
 
-       stage('Terraform Init & Plan') {
-    steps {
-        dir('cloud web app/terraform') {
-            withAWS(region: 'us-east-1', credentials: 'aws-credentials') {
-                bat 'terraform init'
-                bat 'terraform plan -out=tfplan'
-                bat 'terraform show -no-color tfplan > tfplan.txt'
+        stage('Terraform Init & Plan') {
+            steps {
+                dir('cloud web app/terraform') {
+                    withAWS(region: 'us-east-1', credentials: 'aws-credentials') {
+                        bat 'terraform init'
+                        bat 'terraform plan -out=tfplan'
+                        bat 'terraform show -no-color tfplan > tfplan.txt'
+                    }
+                }
             }
         }
-    }
-}
 
         stage('Upload to S3') {
             steps {
@@ -66,7 +59,7 @@ pipeline {
             }
             steps {
                 script {
-                    def plan = readFile 'terraform/tfplan.txt'
+                    def plan = readFile 'cloud web app/terraform/tfplan.txt'
                     input message: "Do you want to apply this Terraform plan?",
                           parameters: [text(name: 'Plan', description: 'Review the plan below', defaultValue: plan)]
                 }
@@ -75,7 +68,7 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                dir('terraform') {
+                dir('cloud web app/terraform') {
                     withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
                         bat "terraform apply -input=false tfplan"
                     }
@@ -85,11 +78,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo '✅ Deployment Successful!'
-        }
-        failure {
-            echo '❌ Deployment Failed!'
-        }
+        success { echo '✅ Deployment Successful!' }
+        failure { echo '❌ Deployment Failed!' }
     }
 }
