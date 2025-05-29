@@ -19,17 +19,15 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies and Test') {
-            steps {
-                dir('cloud web app/app') {
-                    sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install -r requirements.txt
-                    python -m unittest discover
-                    '''
-                }
-            }
+       stage('Install Dependencies and Test') {
+    steps {
+        dir('cloud web app/app') {
+            bat 'pip install -r requirements.txt'
+            bat 'pytest'
+        }
+    }
+}
+
         }
 
         stage('Package Flask App') {
