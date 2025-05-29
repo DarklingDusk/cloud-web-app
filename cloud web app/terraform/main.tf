@@ -135,5 +135,6 @@ resource "aws_instance" "web_server" {
               unzip -o flask-app.zip -d flask-app
               cd flask-app
               pip3 install -r requirements.txt
+              EOF
               
 }
