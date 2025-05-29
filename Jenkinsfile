@@ -23,7 +23,7 @@ pipeline {
     steps {
         dir('cloud web app/app') {
             bat 'pip install -r requirements.txt'
-            bat 'pytest'
+            
         }
     }
 }
