@@ -37,7 +37,7 @@ pipeline {
             }
             steps {
                 script {
-                    def plan = readFile 'cloud web app/terraform/tfplan.txt'
+                    def plan = readFile 'cloud-web-app/terraform/tfplan.txt'
                     input message: "Do you want to apply this Terraform plan?",
                           parameters: [text(name: 'Plan', description: 'Review the plan below', defaultValue: plan)]
                 }
@@ -46,7 +46,7 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                dir('cloud web app/terraform') {
+                dir('cloud-web-app/terraform') {
                     withAWS(region: "${env.AWS_REGION}", credentials: "${env.CREDENTIALS_ID}") {
                         bat "terraform apply -input=false tfplan"
                     }
