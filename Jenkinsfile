@@ -19,7 +19,7 @@ pipeline {
 
         stage('Terraform Init & Plan') {
             steps {
-                dir('cloud web app/terraform') {
+                dir('cloud-web-app/terraform') {
                     withAWS(region: 'us-east-1', credentials: 'aws-credentials') {
                         bat 'terraform init'
                         bat 'terraform plan -out=tfplan'
